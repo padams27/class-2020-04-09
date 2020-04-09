@@ -32,6 +32,34 @@ Third, consider a school with average faculty salary of $50,000 and average SAT 
 Fourth (and optional! not covered in the book!), check out the `predict()` function. This allows you to avoid typing out the formula yourself.
 
 
+```{r}
+
+
+fac_earn <- x %>% 
+  summarise(cor = cor(faculty, earnings)) %>% 
+  pull()
+
+sat_earn <- x %>% 
+  summarise(cor = cor(sat, earnings)) %>% 
+  pull()
+
+model_1 <- x %>% 
+  select(sat, earnings, faculty) %>% 
+  cor()
+
+
+model_1 <- lm(earnings ~ sat + faculty, data = x)
+model_1 %>% 
+  tidy(conf.int = TRUE) %>% 
+  select(term, estimate, conf.low, conf.high)
+
+# could plug in values manually or use predict function 
+
+model_1_predict <- predict(model_1, newdata = tibble(faculty = 50, sat = 1200))
+
+```
+
+
 
 ### Scene 8
 
@@ -45,6 +73,37 @@ Third, determine the school with the largest positive residual and the school wi
 
 Fourth, speculate about what causes these residuals. What is the model missing? How might we improve the model?
 
+```{r}
+
+regression_points <- model_1 %>% 
+  augment(data = x) %>%
+  mutate(conf.low = .fitted - 1.96 * .se.fit,
+         conf.high = .fitted + 1.96 * .se.fit) 
+
+```
+
+residual = diffenrence between best fit line and individual data points
+
+```{r}
+
+high <- regression_points %>% 
+  arrange(desc(.resid)) %>% 
+  head(1) %>% 
+  pull(name)
+
+# pharmacy schools are very different, students have better chance of earnings.
+
+low <- regression_points %>% 
+  arrange(.resid) %>% 
+  head(1) %>% 
+  pull(name)
+
+# Oberlin has music schools - less secure profession and earnings.
+
+# specifying if they are specialty schools would help improve model.
+
+```
+
 
 ### Scene 9
 
@@ -52,7 +111,27 @@ Fourth, speculate about what causes these residuals. What is the model missing? 
 
 First, estimate a new model in which `earnings` are explained by `public` and by `price`. There is no interaction term. Interpret the regression coefficients.
 
+```{r}
+
+model_2 <- lm(earnings ~ public + price, data = x)
+model_2 %>% 
+  tidy(conf.int = TRUE) %>% 
+  select(term, estimate, conf.low, conf.high)
+
+```
+
+
 Second, estimate another model, `model_2`, in which `earnings` are explained by `public`, `price` and the **interaction** between `public` and `price`. Interpret the regression coefficients.
+
+```{r}
+
+model_2.1 <- lm(earnings ~ public * price, data = x)
+model_2.1 %>% 
+  tidy(conf.int = TRUE) %>% 
+  select(term, estimate, conf.low, conf.high)
+
+```
+
 
 Third, use `tidy()` to find the confidence intervals for the regression coefficients for `model_2`.
 
@@ -63,6 +142,16 @@ Fourth, interpret the confidence interval for coefficient on `public` using one 
 ### Scene 10
 
 **Prompt:** In the previous scene, we generated the confidence intervals using `tidy(conf.int = TRUE)`. Let's check those confidence intervals by doing our own bootstrapping. Set `reps = 100` to save processing time. Hints: `unnest()`, `group_by()`, and `summarize()` are useful here, especially `unnest()` which you may not have seen before.
+
+```{r}
+
+model_2.1 %>% 
+  rep_sample_n(size = nrow(x), reps = 3, replace = T)
+
+# look at OG repo for class for answers 
+
+```
+
 
 In other words, you are not using `tidy(conf.int = TRUE)`. You are just using `tidy()`. That gives you the tibble of the regression estimates. Then, you can use `unnest()` to "explode" out a row for each estimate. Then, `group_by(term)` and the usual quantile trick for each parameter should give you what you want.
 
